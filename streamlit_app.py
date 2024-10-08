@@ -13,14 +13,9 @@ from vertexai.generative_models import (
     HarmCategory,
     HarmBlockThreshold,
 )
+from google.oauth2 import service_account
 
 from langchain_google_vertexai import VertexAI
-
-# Show title and description.
-st.title("💬 Exactly Chatbot Demo")
-st.write(
-    "This is a simple demo of Exactly's chatbot that uses Gemini in tandem with Vertex AI to generate chat responses"
-)
 
 # Password protected page
 def check_password():
@@ -49,6 +44,16 @@ def check_password():
 # Password protected page
 if not check_password():
     st.stop()
+
+# Show title and description.
+st.title("💬 Exactly Chatbot Demo")
+st.write(
+    "This is a simple demo of Exactly's chatbot that uses Gemini in tandem with Vertex AI to generate chat responses"
+)
+
+# Feedback form area
+
+
 
 # Initiate Vertex
 system_instructions = """
@@ -162,8 +167,10 @@ function_handler = {
     "get_SWOT_report": generate_SWOT_report
 }
 
+# authenticate GCS
+credentials = service_account.Credentials.from_service_account_info(st.secrets["gcs_connections"])
 
-vertexai.init(project=st.secrets["PROJECT_ID"], location=st.secrets["LOCATION"])
+vertexai.init(project=st.secrets["PROJECT_ID"], location=st.secrets["LOCATION"], credentials=credentials)
 model = GenerativeModel(
     st.secrets["MODEL"],
     system_instruction=system_instructions,
