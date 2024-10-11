@@ -152,7 +152,7 @@ def run():
 
     # Function 1: Book a Call
     def book_a_call():
-        return "Here is your Calendly link: [Calendly Link]"
+        return "Here is your Calendly link: https://calendly.com/b2bcustomleads"
 
     # Function 2: Get Company Report
     def get_company_report(company_name: str, llm):
@@ -224,6 +224,10 @@ def run():
         # Store the user message in session state for UI purposes
         st.session_state.messages.append({"role": "user", "content": prompt})
 
+        # Display the user message
+        with st.chat_message("user"):
+            st.markdown(prompt)
+
         # Check for function-specific input and call the appropriate function
         if "book a call" in prompt.lower():
             response = book_a_call()
@@ -243,10 +247,6 @@ def run():
             # If no function call is detected, use the conversation chain
             formatted_prompt = exactly_template.format(input=prompt)
             response = conversation.predict(input=formatted_prompt)
-
-        # Display the user message
-        with st.chat_message("user"):
-            st.markdown(prompt)
 
         # Display the assistant's response
         with st.chat_message("assistant"):
