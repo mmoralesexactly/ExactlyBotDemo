@@ -8,7 +8,6 @@ from vertexai.generative_models import (
     GenerationConfig,
     GenerativeModel,
     Part,
-    Tool,
     SafetySetting,
     HarmCategory,
     HarmBlockThreshold,
@@ -16,9 +15,30 @@ from vertexai.generative_models import (
 #from langchain import PromptTemplate, LLMChain
 from google.oauth2 import service_account
 
-from langchain_google_vertexai import VertexAI
 
-# Password protected page
+from langchain.chains import (
+    ConversationChain,
+    LLMChain,
+    RetrievalQA,
+    SimpleSequentialChain,
+)
+from langchain_core.documents import Document
+from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.prompts import PromptTemplate
+from langchain_core.prompts.few_shot import FewShotPromptTemplate
+from langchain_google_vertexai import ChatVertexAI, VertexAI
+from langchain.chains.conversation.memory import ConversationSummaryMemory, ConversationBufferMemory
+from langchain.chains.conversation.prompt import ENTITY_MEMORY_CONVERSATION_TEMPLATE
+from langgraph.checkpoint.memory import MemorySaver
+from langchain.agents import initialize_agent, tool, AgentType
+from langchain.tools import StructuredTool, Tool
+from langchain.chains import LLMChain
+from langchain.prompts import PromptTemplate
+from langchain.memory import ConversationBufferMemory
+import streamlit as st
+from pydantic import BaseModel
+
+# Password-protected page
 def check_password():
     """Returns `True` if the user had the correct password."""
 
@@ -52,442 +72,190 @@ st.write(
     "This is a simple demo of Exactly's chatbot that uses Gemini in tandem with Vertex AI to generate chat responses"
 )
 
-# Feedback form area
-
-
-
-# Initiate Vertex
-system_instructions = """
-You are a chatbot whose goal is to help users of the Exactly website with their questions about both the company
-and anything else they might have a question with.
-
-Accuracy is the top priority. If you are unsure of an answer regarding cost or capabilities, do not give an answer and instead respond with
- something like "I apologize, you will have to speak to an Exactly correspondent for more information on that".
-
-Please be courteous but brief in your responses. You want to give short responses that respond to the user's input while
- also fitting within the confines of a chatbox window, which is not very large. At most, try to keep your response under 100 characters in most cases.
-
-Your other top priority is to try and be as friendly and knowledgeable as you can be. We do not want the typical chatbot experience,
-we want to user to feel like that are conversating with an actual person that is not just responding with canned responses.
-
-If the user asks something that can be answered using one of the FunctionDeclarations provided, trigger that FunctionDeclaration.
-
-Here is a sampling of info on Exactly you can use to answer the user
-* Exactly is a "growth accelerator" that aims to provide clients with a done-for-you engine to accelerate their growth
-* Services that Exactly Offers
-    * AI Readiness Assessment
-    * Company Report, covering a SWOT analysis of the given company
-    * SEO Optimization
-    * Chatbot creation and implementation
-    * Website and Social Media overview to see if best practices are in place
-
-If the user asks something that has nothing to do with Exactly's services:
-* Answer their question to the best of your ability
-* Add an interesting tidbit of trivia if possible
-    * Example: If they ask 'When is Valentine's Day?', answer the question and then add a bit of trivia about when the first Valentines day
-       was celebrated, or who it is named after, or any sort of interesting knowledge the user may not be aware of
-* After answering their question, try to use a smooth segue back into Exactly's services
-    * Example: 'Speaking of Valentines Day, I'm sure Exactly has some services that you'll love!'
-    
-Here is additional info on Exactly's Business Summary. Use this to answer questions about Exactly's services and future business plans:
-
-**Business Summary: Exactly AI Solutions**
-
-
-
-**Overview**:  
-
-Exactly AI Solutions empowers small and medium-sized businesses (SMBs) to gain a **competitive advantage** in today’s AI-driven economy. We provide **fully automated, done-for-you AI solutions** that guarantee measurable improvements in growth, efficiency, profitability, and overhead reduction—without the need for technical expertise. Our innovative **Outcomes as a Service (OaaS)** model ensures that clients pay based on performance, with a **20% refundable retainer** if agreed-upon results are not achieved.
-
-
-
-**Core Offering at Launch**:  
-
-At launch, Exactly AI Solutions will focus on **driving client growth** through:
-
-- **Target selection**: Identifying the right companies and contacts to maximize outreach success.
-
-- **Multi-channel outreach**: Leveraging cold email and LinkedIn for effective lead generation.
-
-- **Sales enablement**: Optimizing clients’ sales processes to improve closed/won rates.
-
-
-
-Additionally, we will quickly expand our services to improve clients’ **marketing assets**, including:
-
-- **Websites**
-
-- **SEO**
-
-- **Blogs**
-
-- **Social media management**
-
-- **Advertising strategies**
-
-
-
-Next, we’ll introduce modules such as **custom CRMs** and **AI-driven RPA systems**, with more to follow, allowing clients to scale operations, streamline workflows, and increase profitability.
-
-
-
-**Outcomes as a Service (OaaS)**:  
-
-Our OaaS model ties our success directly to client outcomes, offering measurable improvements in key performance metrics such as **Revenue per Full-Time Worker (FTW)**, sales volume, GTM efficiency, profit margins, and overhead reduction. Clients benefit from this **results-driven pricing model**, with a 20% refundable retainer if we don’t meet the agreed-upon results.
-
-
-
-**Competitive Advantage**:  
-
-Exactly AI Solutions differentiates itself by offering a **hands-off, AI-powered competitive advantage**. Unlike traditional AI solutions that require significant learning or in-house expertise, we handle everything for the client. This done-for-you approach allows businesses to integrate advanced AI without disruption, resulting in rapid growth and efficiency improvements. We focus on **Revenue per Full-Time Worker (FTW)** as a key metric, ensuring clients can generate more revenue with fewer resources, enhancing their long-term competitive edge.
-
-
-
-**Target Market**:  
-
-Initially, Exactly AI Solutions targets **B2B SMBs** in the U.S. seeking growth through AI-driven solutions. Over time, we will expand into **B2C sectors**, **international markets**, and larger enterprises, with a modular approach that allows us to scale rapidly. Our AI solutions are industry-agnostic, making them applicable across a wide range of sectors.
-
-
-
-**Key Metrics for Client Success in the OaaS Model**:
-
-1. **Increased Sales Volume**
-
-2. **GTM Efficiency**
-
-3. **Decreased Overhead**
-
-4. **Revenue per Full-Time Worker (FTW)**
-
-5. **Profit Margin Improvement**
-
-6. **Lead-to-Customer Conversion Rate**
-
-7. **Customer Retention and Churn Rate**
-
-8. **Operational Efficiency (Time Savings)**
-
-9. **Return on Investment (ROI)**
-
-
-
-By focusing on these performance metrics, we ensure that our clients experience tangible, measurable improvements, making AI not just an abstract technology but a key driver of business success.
-
-
-
-**Future Vision**:  
-
-As we grow, Exactly AI Solutions will expand its AI solutions, offering clients new modules and features to further enhance growth and operational efficiency. Our long-term vision is to become a global leader in **Outcomes as a Service (OaaS)**, helping businesses of all sizes leverage AI to achieve significant competitive advantages. We aim to establish a presence in new markets, develop strategic partnerships, and continuously refine our AI-driven offerings to stay at the forefront of the AI economy.
-"""
-
-# Vertex FuncCalls
-get_product_info = FunctionDeclaration(
-    name="get_product_info",
-    description="Get the stock amount and identifier for a given product",
-    parameters={
-        "type": "object",
-        "properties": {
-            "product_name": {"type": "string", "description": "Product name"}
-        }
-    }
-)
-
-book_a_call = FunctionDeclaration(
-    name="book_a_call",
-    description="Used to book a call or meeting or appointment via Calendly",
-    parameters={
-        "type": "object",
-        #"properties": {
-        #    "datetime": {"type": "string", "description": "Date and Time for the booking"}
-        #}
-    }
-)
-
-get_company_report = FunctionDeclaration(
-    name="get_company_report",
-    description="Generates a company report for a given company",
-    parameters={
-        "type": "object",
-        "properties": {
-            "company_name": {"type": "string", "description": "Name of company to generate a report for"}
-        }
-    }
-)
-
-get_SWOT_report = FunctionDeclaration(
-    name="get_SWOT_report",
-    description="Generates a SWOT analysis report for a given company",
-    parameters={
-        "type": "object",
-        "properties": {
-            "company_name": {"type": "string", "description": "Name of company to generate a report for"}
-        }
-    }
-)
-
-func_tools = Tool(
-    function_declarations=[
-        get_product_info,
-        book_a_call,
-        get_company_report,
-        get_SWOT_report
-    ]
-)
-
-# used to book a calendly meeting
-def calendly_meeting():
-    pass
-
-def generate_SWOT_report(company_name, chat):
-    prompt = f"""
-    Please create a comprehensive SWOT analysis report for a company called {company_name}. Base your report on
-    publicly available information that you have access to. The report should contain the following sections:
-        - **Strengths**: Internal factors that give the company an advantage
-        - **Weaknesses**: Internal factors that may hinder the company
-        - **Opportunities**: External factors the company can leverage for growth
-        - **Threats**: External factors that could pose challenges to the company
-    """
-
-    response = chat.send_message(prompt)
-    output = response.candidates[0].content.parts[0]
-    return output
-
-def generate_company_report(company_name, chat):
-    pass
-
-# function lookup for function_calls
-function_handler = {
-    "book_a_call": calendly_meeting,
-    "get_company_report": generate_company_report,
-    "get_SWOT_report": generate_SWOT_report
-}
-
-
-
-@st.cache_resource(show_spinner=False)
-def LLM_init():
+def gcs_auth():
     # authenticate GCS
     credentials = service_account.Credentials.from_service_account_info(st.secrets["gcs_connections"])
 
     # initiate vertex model
     vertexai.init(project=st.secrets["PROJECT_ID"], location=st.secrets["LOCATION"], credentials=credentials)
-    model = GenerativeModel(
-        st.secrets["MODEL"],
-        system_instruction=system_instructions,
-        generation_config=GenerationConfig(temperature=1.0),
-        tools=[func_tools],
-        safety_settings=[
-                                SafetySetting(
-                                    category=HarmCategory.HARM_CATEGORY_HARASSMENT,
-                                    threshold=HarmBlockThreshold.BLOCK_ONLY_HIGH,
-                                ),
-                                SafetySetting(
-                                    category=HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-                                    threshold=HarmBlockThreshold.BLOCK_ONLY_HIGH,
-                                ),
-                                SafetySetting(
-                                    category=HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-                                    threshold=HarmBlockThreshold.BLOCK_ONLY_HIGH,
-                                ),
-                                SafetySetting(
-                                    category=HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-                                    threshold=HarmBlockThreshold.BLOCK_ONLY_HIGH,
-                                ),
-                                SafetySetting(
-                                    category=HarmCategory.HARM_CATEGORY_UNSPECIFIED,
-                                    threshold=HarmBlockThreshold.BLOCK_ONLY_HIGH,
-                                )
-                            ]
-    )
 
-    return model
-
-def generate_response(chat, model, input):
-    response = chat.send_message(input)
-
-    #handle cases w/ multiple chained function calls
-    function_calling_in_progress = True
-    while function_calling_in_progress:
-        # extract function call response
-        function_call = response.candidates[0].content.parts[0].function_call
-        print(function_call)
-
-        if function_call.name in function_handler.keys():
-            function_name = function_call.name
-            print(f"[FunctionCall]: {function_name}")
-
-            if function_name == 'book_a_call':
-                #response = chat.send_message(
-                #    Part.from_function_response(
-                #        name=function_name,
-                #        response={"content": "https://calendly.com/b2bcustomleads"}
-                #    )
-                #)
-                return "Sure! Please use the following calendly link to schedule a call with us: https://calendly.com/b2bcustomleads"
-            elif function_name == 'get_company_report':
-                function_calling_in_process = False
-                params = {k: v for k, v in function_call.args.items()}
-                company_name = params['company_name']
-                print(f"Sure, I can generate a company report for {company_name}")
-
-                prompt = f"""
-                            "Please create a comprehensive company report for {company_name} based on publicly available information. The report should include the following sections:
-                            Company Overview:
-                                - Company type (public, private, employee-owned)
-                                - Primary Industry/Industries: The main industry or industries the company operates in.
-                                - Year founded
-                                - Headquarters location
-                                - Number of employees (if available)
-                                - Annual revenue (if available)
-                                - Website URL
-                             
-                            Mission & Values:
-                                Mission statement
-                                Core values
-                            Expertise & Offerings:
-                                Core areas of expertise or products/services offered
-                                Additional offerings or specializations
-                            Key Differentiators:
-                                Unique aspects of their approach, technology, or services that set them apart from competitors
-                                
-                            Target Audience/Customers:
-                                Primary target market or customer segments
-                                Secondary or niche markets they serve
-                            Products/Services (or Project Portfolio):
-                                Description of core products, services, or projects
-                                Key features and benefits
-                                Pricing models (if available)
-                            Competitive Landscape:
-                                Main competitors
-                                Factors that differentiate the company from its competitors
-                            Marketing & Sales Insights:
-                                Key messaging and branding themes
-                                Marketing channels utilized
-                                Types of content created (case studies, white papers, etc.)
-                                Presence of client testimonials or reviews
-                            Social Media Presence:
-                                List of social media channels the company is active on (e.g., LinkedIn, Twitter, Facebook)
-                                URLs of the company's social media profiles (where available)
-                                Brief analysis of their social media activity and engagement (optional)
-                            SWOT Analysis Summary:
-                                Strengths: Internal factors that give the company an advantage
-                                Weaknesses: Internal factors that may hinder the company
-                                Opportunities: External factors the company can leverage for growth
-                                Threats: External factors that could pose challenges to the company
-                            12. Financial Performance (If Available):
-                                Brief overview of financial health, revenue, or growth trends, if accessible from public sources
-                                
-                            Please ensure the report is well-structured, concise, and provides actionable insights based on the available information."
-                            """
-
-                response = model.generate_content(
-                    prompt,
-                    safety_settings=[
-                        SafetySetting(
-                            category=HarmCategory.HARM_CATEGORY_HARASSMENT,
-                            threshold=HarmBlockThreshold.BLOCK_ONLY_HIGH,
-                        ),
-                        SafetySetting(
-                            category=HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-                            threshold=HarmBlockThreshold.BLOCK_ONLY_HIGH,
-                        ),
-                        SafetySetting(
-                            category=HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-                            threshold=HarmBlockThreshold.BLOCK_ONLY_HIGH,
-                        ),
-                        SafetySetting(
-                            category=HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-                            threshold=HarmBlockThreshold.BLOCK_ONLY_HIGH,
-                        ),
-                        SafetySetting(
-                            category=HarmCategory.HARM_CATEGORY_UNSPECIFIED,
-                            threshold=HarmBlockThreshold.BLOCK_ONLY_HIGH,
-                        )
-                    ])
-
-                return response.text
-            elif function_name == 'get_SWOT_report':
-                function_calling_in_process = False
-                params = {k: v for k, v in function_call.args.items()}
-                company_name = params['company_name']
-                print(f"Sure, I can generate a SWOT analysis for {company_name}")
-
-                prompt = f"""
-                                    Please create a comprehensive SWOT (Strengths, Weaknesses, Opportunites, Threats) report for the company called {company_name}. Base your report on
-                                    publicly available information that you have been trained on. The report should contain the following sections:
-                                        - **Strengths**: Internal factors that give the company an advantage
-                                        - **Weaknesses**: Internal factors that may hinder the company
-                                        - **Opportunities**: External factors the company can leverage for growth
-                                        - **Threats**: External factors that could pose challenges to the company
-                                    """
-
-                response = model.generate_content(
-                    prompt,
-                    safety_settings=[
-                        SafetySetting(
-                            category=HarmCategory.HARM_CATEGORY_HARASSMENT,
-                            threshold=HarmBlockThreshold.BLOCK_ONLY_HIGH,
-                        ),
-                        SafetySetting(
-                            category=HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-                            threshold=HarmBlockThreshold.BLOCK_ONLY_HIGH,
-                        ),
-                        SafetySetting(
-                            category=HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-                            threshold=HarmBlockThreshold.BLOCK_ONLY_HIGH,
-                        ),
-                        SafetySetting(
-                            category=HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-                            threshold=HarmBlockThreshold.BLOCK_ONLY_HIGH,
-                        ),
-                        SafetySetting(
-                            category=HarmCategory.HARM_CATEGORY_UNSPECIFIED,
-                            threshold=HarmBlockThreshold.BLOCK_ONLY_HIGH,
-                        )
-                    ])
-
-                return response.text
-        else:
-            function_calling_in_progress = False
-            print(response.candidates[0].content.parts[0])
-            return response.candidates[0].content.parts[0].text
 
 def run():
-    model = LLM_init()
-    chat = model.start_chat()
+    gcs_auth()
 
-    # Create a session state variable to store the chat messages. This ensures that the
-    # messages persist across reruns.
+    exactly_template = PromptTemplate(template="""
+    You are a helpful assistant for a company named Exactly, full name Exactly AI Solutions.
+    
+    Your goal is to be a friendly, conversational assistant and answer the user's questions to the best of your knowledge.
+    
+    Some more info on Exactly:
+    
+    Exactly AI Solutions empowers small and medium-sized businesses (SMBs) to gain a **competitive advantage** in today’s AI-driven economy. We provide **fully automated, done-for-you AI solutions** that guarantee measurable improvements in growth, efficiency, profitability, and overhead reduction—without the need for technical expertise. Our innovative **Outcomes as a Service (OaaS)** model ensures that clients pay based on performance, with a **20% refundable retainer** if agreed-upon results are not achieved.
+    
+    **Core Offering at Launch**:  
+    At launch, Exactly AI Solutions will focus on **driving client growth** through:
+    - **Target selection**: Identifying the right companies and contacts to maximize outreach success.
+    - **Multi-channel outreach**: Leveraging cold email and LinkedIn for effective lead generation.
+    - **Sales enablement**: Optimizing clients’ sales processes to improve closed/won rates.
+    
+    Additionally, we will quickly expand our services to improve clients’ **marketing assets**, including:
+    - **Websites**
+    - **SEO**
+    - **Blogs**
+    - **Social media management**
+    - **Advertising strategies**
+    
+    Next, we’ll introduce modules such as **custom CRMs** and **AI-driven RPA systems**, with more to follow, allowing clients to scale operations, streamline workflows, and increase profitability.
+    
+    **Outcomes as a Service (OaaS)**:  
+    Our OaaS model ties our success directly to client outcomes, offering measurable improvements in key performance metrics such as **Revenue per Full-Time Worker (FTW)**, sales volume, GTM efficiency, profit margins, and overhead reduction. Clients benefit from this **results-driven pricing model**, with a 20% refundable retainer if we don’t meet the agreed-upon results.
+    
+    **Competitive Advantage**:  
+    Exactly AI Solutions differentiates itself by offering a **hands-off, AI-powered competitive advantage**. Unlike traditional AI solutions that require significant learning or in-house expertise, we handle everything for the client. This done-for-you approach allows businesses to integrate advanced AI without disruption, resulting in rapid growth and efficiency improvements. We focus on **Revenue per Full-Time Worker (FTW)** as a key metric, ensuring clients can generate more revenue with fewer resources, enhancing their long-term competitive edge.
+    
+    **Target Market**:  
+    Initially, Exactly AI Solutions targets **B2B SMBs** in the U.S. seeking growth through AI-driven solutions. Over time, we will expand into **B2C sectors**, **international markets**, and larger enterprises, with a modular approach that allows us to scale rapidly. Our AI solutions are industry-agnostic, making them applicable across a wide range of sectors.
+    
+    **Key Metrics for Client Success in the OaaS Model**:
+    1. **Increased Sales Volume**
+    2. **GTM Efficiency**
+    3. **Decreased Overhead**
+    4. **Revenue per Full-Time Worker (FTW)**
+    5. **Profit Margin Improvement**
+    6. **Lead-to-Customer Conversion Rate**
+    7. **Customer Retention and Churn Rate**
+    8. **Operational Efficiency (Time Savings)**
+    9. **Return on Investment (ROI)**
+    
+    By focusing on these performance metrics, we ensure that our clients experience tangible, measurable improvements, making AI not just an abstract technology but a key driver of business success.
+    
+    **Future Vision**:  
+    As we grow, Exactly AI Solutions will expand its AI solutions, offering clients new modules and features to further enhance growth and operational efficiency. Our long-term vision is to become a global leader in **Outcomes as a Service (OaaS)**, helping businesses of all sizes leverage AI to achieve significant competitive advantages. We aim to establish a presence in new markets, develop strategic partnerships, and continuously refine our AI-driven offerings to stay at the forefront of the AI economy
+    
+    Answer the user's input:
+    {input}
+    """)
+
+    # Use VertexAI LLM instance
+    llm = ChatVertexAI(
+        model_name="gemini-1.5-flash",
+        verbose=True,
+    )
+
+    # Initialize memory in session state if it doesn't exist already
+    if "memory" not in st.session_state:
+        st.session_state.memory = ConversationBufferMemory()
+
+    # Function to generate prompt from template
+    def generate_prompt(user_input):
+        return exactly_template.format(input=user_input)
+
+    # Function 1: Book a Call
+    def book_a_call():
+        return "Here is your Calendly link: [Calendly Link]"
+
+    # Function 2: Get Company Report
+    def get_company_report(company_name: str, llm):
+        report_prompt = f"""
+        You are generating a detailed company report for {company_name}.
+
+        Please provide a comprehensive analysis that includes:
+        - Overview of the company's background
+        - Market performance
+        - Recent news
+
+        Ensure the report is professional and insightful.
+        """
+        return llm.predict(report_prompt)
+
+    # Function 3: Get SWOT Analysis
+    def get_SWOT_analysis(company_name: str, llm):
+        swot_prompt = f"""
+        You are generating a SWOT analysis for {company_name}.
+
+        Please include:
+        - Strengths
+        - Weaknesses
+        - Opportunities
+        - Threats
+
+        Ensure the analysis is thorough and detailed.
+        """
+        return llm.predict(swot_prompt)
+
+    def sales_tip_of_day(llm):
+        prompt = "Generate a random sales tip that could help a salesperson improve their performance."
+        return llm.predict(prompt)
+
+    # Function 2: Objection Buster
+    def objection_buster(llm):
+        prompt = """
+        Generate a response to handle common sales objections, such as:
+        - 'I don’t have the budget right now.'
+        - 'We are already working with another vendor.'
+        - 'I need to talk to my boss before making a decision.'
+        Make sure to provide a smart, persuasive response for each objection.
+        """
+        return llm.predict(prompt)
+
+    # Function 3: Content Brainstorm
+    def content_brainstorm(llm):
+        prompt = "Generate a random blog topic idea for a company in any industry."
+        return llm.predict(prompt)
+
+    # Create conversation chain with memory from session state
+    conversation = ConversationChain(
+        llm=llm,
+        verbose=True,
+        memory=st.session_state.memory
+    )
+
+    # Streamlit session state to store and display messages for UI purposes
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
-    # Display the existing chat messages via `st.chat_message`.
+    # Display the chat history (this is for UI purposes, not memory)
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    # Create a chat input field to allow the user to enter a message. This will display
-    # automatically at the bottom of the page.
+    # Handle new user input
     if prompt := st.chat_input("What's on your mind?"):
-
-        # Store and display the current prompt.
+        # Store the user message in session state for UI purposes
         st.session_state.messages.append({"role": "user", "content": prompt})
+
+        # Check for function-specific input and call the appropriate function
+        if "book a call" in prompt.lower():
+            response = book_a_call()
+        elif "company report" in prompt.lower():
+            company_name = prompt.split("for")[-1].strip()
+            response = get_company_report(company_name, llm)
+        elif "swot analysis" in prompt.lower():
+            company_name = prompt.split("for")[-1].strip()
+            response = get_SWOT_analysis(company_name, llm)
+        elif "sales tip" in prompt.lower():
+            response = sales_tip_of_day(llm)
+        elif "objection buster" in prompt.lower():
+            response = objection_buster(llm)
+        elif "content brainstorm" in prompt.lower():
+            response = content_brainstorm(llm)
+        else:
+            # If no function call is detected, use the conversation chain
+            formatted_prompt = exactly_template.format(input=prompt)
+            response = conversation.predict(input=formatted_prompt)
+
+        # Display the user message
         with st.chat_message("user"):
             st.markdown(prompt)
 
-        # Generate a response using Gmodel
-        msg = generate_response(chat, model, prompt)
+        # Display the assistant's response
+        with st.chat_message("assistant"):
+            st.markdown(response)
 
-        #msg = chat.send_message(prompt)
-        #stream = msg.candidates[0].content.parts[0]
-        #msg = response.candidates[0].content.parts[0]
+        # Store the assistant response in session state for UI purposes
+        st.session_state.messages.append({"role": "assistant", "content": response})
 
-        # Stream the response to the chat using `st.write_stream`, then store it in
-        # session state.
-        #with st.chat_message("assistant"):
-        #    response = st.write_stream(stream)
-        #st.session_state.messages.append({"role": "assistant", "content": response})
-        st.session_state.messages.append({"role": "assistant", "content": msg})
-        st.chat_message("assistant").write(msg)
+        # Print out the entire memory buffer to ensure full memory retention
+        print("Memory Buffer:", st.session_state.memory.load_memory_variables({}))
 
 run()
