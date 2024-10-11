@@ -88,51 +88,6 @@ def run():
     
     Your goal is to be a friendly, conversational assistant and answer the user's questions to the best of your knowledge.
     
-    Some more info on Exactly:
-    
-    Exactly AI Solutions empowers small and medium-sized businesses (SMBs) to gain a **competitive advantage** in today’s AI-driven economy. We provide **fully automated, done-for-you AI solutions** that guarantee measurable improvements in growth, efficiency, profitability, and overhead reduction—without the need for technical expertise. Our innovative **Outcomes as a Service (OaaS)** model ensures that clients pay based on performance, with a **20% refundable retainer** if agreed-upon results are not achieved.
-    
-    **Core Offering at Launch**:  
-    At launch, Exactly AI Solutions will focus on **driving client growth** through:
-    - **Target selection**: Identifying the right companies and contacts to maximize outreach success.
-    - **Multi-channel outreach**: Leveraging cold email and LinkedIn for effective lead generation.
-    - **Sales enablement**: Optimizing clients’ sales processes to improve closed/won rates.
-    
-    Additionally, we will quickly expand our services to improve clients’ **marketing assets**, including:
-    - **Websites**
-    - **SEO**
-    - **Blogs**
-    - **Social media management**
-    - **Advertising strategies**
-    
-    Next, we’ll introduce modules such as **custom CRMs** and **AI-driven RPA systems**, with more to follow, allowing clients to scale operations, streamline workflows, and increase profitability.
-    
-    **Outcomes as a Service (OaaS)**:  
-    Our OaaS model ties our success directly to client outcomes, offering measurable improvements in key performance metrics such as **Revenue per Full-Time Worker (FTW)**, sales volume, GTM efficiency, profit margins, and overhead reduction. Clients benefit from this **results-driven pricing model**, with a 20% refundable retainer if we don’t meet the agreed-upon results.
-    
-    **Competitive Advantage**:  
-    Exactly AI Solutions differentiates itself by offering a **hands-off, AI-powered competitive advantage**. Unlike traditional AI solutions that require significant learning or in-house expertise, we handle everything for the client. This done-for-you approach allows businesses to integrate advanced AI without disruption, resulting in rapid growth and efficiency improvements. We focus on **Revenue per Full-Time Worker (FTW)** as a key metric, ensuring clients can generate more revenue with fewer resources, enhancing their long-term competitive edge.
-    
-    **Target Market**:  
-    Initially, Exactly AI Solutions targets **B2B SMBs** in the U.S. seeking growth through AI-driven solutions. Over time, we will expand into **B2C sectors**, **international markets**, and larger enterprises, with a modular approach that allows us to scale rapidly. Our AI solutions are industry-agnostic, making them applicable across a wide range of sectors.
-    
-    **Key Metrics for Client Success in the OaaS Model**:
-    1. **Increased Sales Volume**
-    2. **GTM Efficiency**
-    3. **Decreased Overhead**
-    4. **Revenue per Full-Time Worker (FTW)**
-    5. **Profit Margin Improvement**
-    6. **Lead-to-Customer Conversion Rate**
-    7. **Customer Retention and Churn Rate**
-    8. **Operational Efficiency (Time Savings)**
-    9. **Return on Investment (ROI)**
-    
-    By focusing on these performance metrics, we ensure that our clients experience tangible, measurable improvements, making AI not just an abstract technology but a key driver of business success.
-    
-    **Future Vision**:  
-    As we grow, Exactly AI Solutions will expand its AI solutions, offering clients new modules and features to further enhance growth and operational efficiency. Our long-term vision is to become a global leader in **Outcomes as a Service (OaaS)**, helping businesses of all sizes leverage AI to achieve significant competitive advantages. We aim to establish a presence in new markets, develop strategic partnerships, and continuously refine our AI-driven offerings to stay at the forefront of the AI economy
-    
-    Answer the user's input:
     {input}
     """)
 
