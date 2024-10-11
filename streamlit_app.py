@@ -87,7 +87,8 @@ def run():
     You are a helpful assistant for a company named Exactly, full name Exactly AI Solutions.
     
     Your goal is to be a friendly, conversational assistant and answer the user's questions to the best of your knowledge.
-    
+
+    Users Input:     
     {input}
     """)
 
