@@ -14,7 +14,7 @@ from vertexai.generative_models import (
 )
 #from langchain import PromptTemplate, LLMChain
 from google.oauth2 import service_account
-
+import google.auth
 
 from langchain.chains import (
     ConversationChain,
@@ -74,6 +74,10 @@ st.write(
 
 def gcs_auth():
     # authenticate GCS
+    #credentials = service_account.Credentials.from_service_account_info(st.secrets["gcs_connections"])
+    credentials, project = google.auth.default(scopes=["https://www.googleapis.com/auth/cloud-platform"])
+
+    # If you're manually passing credentials from st.secrets, use the following line
     credentials = service_account.Credentials.from_service_account_info(st.secrets["gcs_connections"])
 
     # initiate vertex model
