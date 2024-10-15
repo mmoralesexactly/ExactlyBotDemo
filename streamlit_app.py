@@ -82,6 +82,7 @@ def gcs_auth():
 
 def run():
     gcs_auth()
+    st.info("Successfully Authenticated GCS")
 
     exactly_template = PromptTemplate(template="""
     You are a helpful assistant for a company named Exactly, full name Exactly AI Solutions.
@@ -97,6 +98,7 @@ def run():
         model_name="gemini-1.5-flash",
         verbose=True,
     )
+    st.info("Successfully initiated Vertex Model")
 
     # Initialize memory in session state if it doesn't exist already
     if "memory" not in st.session_state:
